@@ -8,13 +8,21 @@ const { seedInitialData } = require('./config/seed');
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
-  // Bind to port immediately so cloud providers (Render, Railway) detect healthy port binding
-  const server = app.listen(PORT, () => {
+  // Bind explicitly to 0.0.0.0 so cloud providers (Render, Railway, Docker) route incoming traffic
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`===============================================`);
     console.log(`  QueueLess Backend Server running on port ${PORT}`);
     console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`  Health Check: http://localhost:${PORT}/api/health`);
     console.log(`===============================================`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[Fatal Server Error] Port ${PORT} is already in use by another process.`);
+    } else {
+      console.error('[Fatal Server Error]', err.message);
+    }
   });
 
   try {

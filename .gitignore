@@ -4,8 +4,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Production build outputs
-dist/
+# Production build outputs (frontend/dist is tracked for reliable zero-config cloud deployment)
+# dist/
 build/
 
 # Environment files & Secrets

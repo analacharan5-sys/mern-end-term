@@ -85,6 +85,7 @@ const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
 const fs = require('fs');
 
 if (fs.existsSync(frontendDistPath)) {
+  console.log(`[Static] Serving frontend from: ${frontendDistPath}`);
   app.use(express.static(frontendDistPath));
   app.get('*', (req, res, next) => {
     // If request starts with /api, let 404 handler handle it
@@ -92,6 +93,22 @@ if (fs.existsSync(frontendDistPath)) {
       return next();
     }
     res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  console.warn(`[Static Warning] Frontend dist directory not found at: ${frontendDistPath}`);
+  app.get('/', (req, res) => {
+    res.status(200).send(`
+      <!DOCTYPE html>
+      <html>
+        <head><title>QueueLess Backend</title><style>body{font-family:sans-serif;padding:40px;line-height:1.6;max-width:600px;margin:auto;color:#1e293b;}</style></head>
+        <body>
+          <h2>QueueLess Campus Services API is Running</h2>
+          <p>Status: <strong>Healthy</strong></p>
+          <p>The frontend static build was not found at <code>frontend/dist</code>. Run <code>npm run build</code> to compile the client application.</p>
+          <p><a href="/api/health">Check API Health</a> | <a href="/api/services">View Services</a></p>
+        </body>
+      </html>
+    `);
   });
 }
 
