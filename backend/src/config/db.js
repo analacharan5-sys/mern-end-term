@@ -19,6 +19,9 @@ async function connectDB(customUri) {
   }
 
   let explicitUri = customUri || process.env.MONGO_URI || process.env.MONGODB_URI;
+  if (typeof explicitUri === 'string') {
+    explicitUri = explicitUri.trim().replace(/^["']|["']$/g, '');
+  }
 
   // 1. If explicit MONGO_URI / MONGODB_URI is set (e.g. MongoDB Atlas), connect to it
   if (explicitUri) {

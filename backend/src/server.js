@@ -8,20 +8,20 @@ const { seedInitialData } = require('./config/seed');
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
+  // Bind to port immediately so cloud providers (Render, Railway) detect healthy port binding
+  const server = app.listen(PORT, () => {
+    console.log(`===============================================`);
+    console.log(`  QueueLess Backend Server running on port ${PORT}`);
+    console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`  Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`===============================================`);
+  });
+
   try {
     await connectDB();
     await seedInitialData();
-
-    app.listen(PORT, () => {
-      console.log(`===============================================`);
-      console.log(`  QueueLess Backend Server running on port ${PORT}`);
-      console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`  Health Check: http://localhost:${PORT}/api/health`);
-      console.log(`===============================================`);
-    });
   } catch (error) {
-    console.error('Fatal error starting server:', error);
-    process.exit(1);
+    console.error('[Startup Warning] Initial database connection error:', error.message);
   }
 }
 

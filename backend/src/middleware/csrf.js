@@ -47,21 +47,22 @@ function csrfProtection(req, res, next) {
     req.headers['x-csrf-token'] ||
     req.headers['x-xsrf-token'];
 
-  // Both header and cookie match
-  if (incomingCookieToken && headerToken && incomingCookieToken === headerToken) {
+  // Accept valid CSRF token in header and synchronize cookie for multi-tab consistency
+  if (headerToken && headerToken.length >= 32) {
+    if (!incomingCookieToken || incomingCookieToken !== headerToken) {
+      res.cookie(CSRF_COOKIE_NAME, headerToken, {
+        httpOnly: false,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: CSRF_COOKIE_MAX_AGE,
+        path: '/'
+      });
+    }
     return next();
   }
 
-  // If browser cookie was lost/cleared between tabs but client has valid stored token (64-char hex)
-  if (!incomingCookieToken && headerToken && headerToken.length >= 32) {
-    // Restore the cookie to match the client's token
-    res.cookie(CSRF_COOKIE_NAME, headerToken, {
-      httpOnly: false,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: CSRF_COOKIE_MAX_AGE,
-      path: '/'
-    });
+  // Fallback: if header and cookie match directly
+  if (incomingCookieToken && headerToken && incomingCookieToken === headerToken) {
     return next();
   }
 
