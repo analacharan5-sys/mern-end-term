@@ -2,11 +2,15 @@ const rateLimit = require('express-rate-limit');
 
 const isTest = process.env.NODE_ENV === 'test';
 
+const rateLimitKey = (req) => req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1';
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: isTest ? 10000 : 30, // 30 requests per 15 min for auth in prod/dev
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKey,
+  validate: { xForwardedForHeader: false, default: true },
   message: {
     success: false,
     message: 'Too many authentication attempts from this IP. Please try again after 15 minutes.'
@@ -18,6 +22,8 @@ const bookingLimiter = rateLimit({
   max: isTest ? 10000 : 60,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKey,
+  validate: { xForwardedForHeader: false, default: true },
   message: {
     success: false,
     message: 'Booking request rate limit reached. Please wait a few minutes before trying again.'
@@ -29,6 +35,8 @@ const generalLimiter = rateLimit({
   max: isTest ? 50000 : 300,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKey,
+  validate: { xForwardedForHeader: false, default: true },
   message: {
     success: false,
     message: 'Too many requests. Please slow down.'
