@@ -4,7 +4,7 @@
   "private": true,
   "description": "QueueLess - Complete appointment booking and queue management application for campus services",
   "scripts": {
-    "postinstall": "npm install --prefix backend && npm install --prefix frontend",
+    "postinstall": "npm install --prefix backend && npm install --prefix frontend --include=dev",
     "build": "npm run build --prefix frontend",
     "start": "node backend/src/server.js",
     "dev:backend": "npm run dev --prefix backend",
