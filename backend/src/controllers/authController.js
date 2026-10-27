@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { getJwtSecret } = require('../middleware/auth');
-const { CSRF_COOKIE_NAME, generateToken } = require('../middleware/csrf');
+const { CSRF_COOKIE_NAME, CSRF_COOKIE_MAX_AGE, generateToken } = require('../middleware/csrf');
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -20,17 +20,18 @@ function createAndSendToken(user, statusCode, req, res) {
   // Set HttpOnly JWT cookie
   res.cookie('jwt', token, COOKIE_OPTIONS);
 
-  // Ensure CSRF cookie is set
+  // Ensure CSRF cookie is set with matching 7-day lifespan
   let csrfToken = req.cookies ? req.cookies[CSRF_COOKIE_NAME] : null;
   if (!csrfToken) {
     csrfToken = generateToken();
-    res.cookie(CSRF_COOKIE_NAME, csrfToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/'
-    });
   }
+  res.cookie(CSRF_COOKIE_NAME, csrfToken, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: CSRF_COOKIE_MAX_AGE,
+    path: '/'
+  });
 
   return res.status(statusCode).json({
     success: true,
@@ -170,13 +171,14 @@ exports.getCsrfToken = (req, res) => {
   let csrfToken = req.cookies ? req.cookies[CSRF_COOKIE_NAME] : null;
   if (!csrfToken) {
     csrfToken = generateToken();
-    res.cookie(CSRF_COOKIE_NAME, csrfToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/'
-    });
   }
+  res.cookie(CSRF_COOKIE_NAME, csrfToken, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: CSRF_COOKIE_MAX_AGE,
+    path: '/'
+  });
   return res.status(200).json({
     success: true,
     csrfToken

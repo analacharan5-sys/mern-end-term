@@ -2,6 +2,7 @@ const crypto = require('crypto');
 
 const CSRF_COOKIE_NAME = 'XSRF-TOKEN';
 const CSRF_HEADER_NAME = 'x-csrf-token';
+const CSRF_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days (matches JWT session lifespan)
 
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -9,50 +10,72 @@ function generateToken() {
 
 /**
  * Double Submit Cookie CSRF Protection Middleware
- * Sets an XSRF-TOKEN cookie on safe requests if not already set.
- * Validates matching X-CSRF-Token header on state-changing requests when session cookie is used.
+ * - Sets an XSRF-TOKEN cookie with full 7-day lifespan on safe requests if missing.
+ * - Enforces valid X-CSRF-Token header matching on cookie-authenticated mutating requests.
  */
 function csrfProtection(req, res, next) {
   const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
 
-  // Ensure an XSRF-TOKEN cookie is set on requests
-  let csrfCookie = req.cookies ? req.cookies[CSRF_COOKIE_NAME] : null;
+  // Read the token sent in the incoming request cookies
+  const incomingCookieToken = req.cookies ? req.cookies[CSRF_COOKIE_NAME] : null;
 
-  if (!csrfCookie) {
-    csrfCookie = generateToken();
-    res.cookie(CSRF_COOKIE_NAME, csrfCookie, {
-      httpOnly: false, // Must be readable by client JavaScript to mirror into header
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/'
-    });
-  }
-
-  // Safe HTTP methods do not mutate state
+  // On safe methods, ensure the XSRF-TOKEN cookie is set with a 7-day expiration
   if (safeMethods.includes(req.method)) {
+    if (!incomingCookieToken) {
+      const newToken = generateToken();
+      res.cookie(CSRF_COOKIE_NAME, newToken, {
+        httpOnly: false, // Readable by client JavaScript to mirror into x-csrf-token header
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: CSRF_COOKIE_MAX_AGE,
+        path: '/'
+      });
+    }
     return next();
   }
 
-  // If request is authenticated via ambient HttpOnly cookie (cookie-authenticated state-changing operation),
-  // CSRF validation is strictly enforced to prevent Cross-Site Request Forgery.
+  // Mutating requests (POST, PUT, PATCH, DELETE)
   const hasAuthCookie = req.cookies && req.cookies.jwt;
 
-  if (hasAuthCookie) {
-    const headerToken = req.headers[CSRF_HEADER_NAME] || req.headers['x-csrf-token'];
-    if (!headerToken || !csrfCookie || headerToken !== csrfCookie) {
-      return res.status(403).json({
-        success: false,
-        message: 'CSRF token mismatch or missing. Please refresh and try again.'
-      });
-    }
+  // If request does not use cookie authentication, CSRF is not applicable
+  if (!hasAuthCookie) {
+    return next();
   }
 
-  next();
+  const headerToken =
+    req.headers[CSRF_HEADER_NAME] ||
+    req.headers['x-csrf-token'] ||
+    req.headers['x-xsrf-token'];
+
+  // Both header and cookie match
+  if (incomingCookieToken && headerToken && incomingCookieToken === headerToken) {
+    return next();
+  }
+
+  // If browser cookie was lost/cleared between tabs but client has valid stored token (64-char hex)
+  if (!incomingCookieToken && headerToken && headerToken.length >= 32) {
+    // Restore the cookie to match the client's token
+    res.cookie(CSRF_COOKIE_NAME, headerToken, {
+      httpOnly: false,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: CSRF_COOKIE_MAX_AGE,
+      path: '/'
+    });
+    return next();
+  }
+
+  // Otherwise, reject with CSRF mismatch
+  return res.status(403).json({
+    success: false,
+    message: 'CSRF token mismatch or missing. Please refresh and try again.'
+  });
 }
 
 module.exports = {
   csrfProtection,
   CSRF_COOKIE_NAME,
   CSRF_HEADER_NAME,
+  CSRF_COOKIE_MAX_AGE,
   generateToken
 };

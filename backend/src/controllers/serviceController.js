@@ -1,9 +1,16 @@
+const mongoose = require('mongoose');
 const Service = require('../models/Service');
 const Appointment = require('../models/Appointment');
 
 // GET /api/services
 exports.getAllServices = async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        message: 'Connecting to MongoDB Atlas... Please refresh in a moment.'
+      });
+    }
     const { category, search, includeInactive } = req.query;
     const filter = {};
 

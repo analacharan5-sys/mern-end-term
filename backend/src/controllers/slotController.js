@@ -22,6 +22,14 @@ function isValidDateFormat(dateStr) {
 // GET /api/slots
 exports.getSlots = async (req, res) => {
   try {
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        message: 'Connecting to database... Please refresh in a moment.'
+      });
+    }
+
     const { serviceId, date, onlyAvailable } = req.query;
 
     if (!serviceId) {

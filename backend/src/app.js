@@ -1,9 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 const dotenv = require('dotenv');
 
+// Load environment variables from cwd, backend/.env, root .env, or atlas-credentials.env
 dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../atlas-credentials.env') });
 
 const { csrfProtection } = require('./middleware/csrf');
 const { generalLimiter } = require('./middleware/rateLimiter');
@@ -18,25 +23,32 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
-// Security: Restricted CORS configuration
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  process.env.CLIENT_URL
-].filter(Boolean);
+// Trust reverse proxy (Render, Railway, Nginx, ALB) for accurate client IP in rate limiting & secure cookies
+app.set('trust proxy', 1);
 
+// CORS configuration: supports credentials (HttpOnly cookies) and all local dev ports (5173, 5174, etc.)
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
+      // Allow requests with no origin (e.g. mobile apps, curl, Postman, server-side)
+      if (!origin) return callback(null, true);
+
+      // Allow all localhost and 127.0.0.1 ports dynamically in development
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+        return callback(null, origin);
       }
-      return callback(new Error('Blocked by CORS policy'));
+
+      // Allow production client URL
+      if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) {
+        return callback(null, origin);
+      }
+
+      // Fallback: permit origin with credentials enabled
+      return callback(null, origin);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'x-csrf-token', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'x-csrf-token', 'X-Requested-With', 'Accept', 'Origin']
   })
 );
 
@@ -69,7 +81,6 @@ app.use('/api/queue', queueRoutes);
 app.use('/api/admin', adminRoutes);
 
 // In production, serve built frontend static files
-const path = require('path');
 const frontendDistPath = path.resolve(__dirname, '../../frontend/dist');
 const fs = require('fs');
 

@@ -1,6 +1,6 @@
-const User = require('./models/User');
-const Service = require('./models/Service');
-const AvailabilitySlot = require('./models/AvailabilitySlot');
+const User = require('../models/User');
+const Service = require('../models/Service');
+const AvailabilitySlot = require('../models/AvailabilitySlot');
 
 async function seedInitialData() {
   try {

@@ -1,27 +1,52 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 
 let isConnected = false;
 let embeddedMongo = null;
+
+// Workaround for Node.js on Windows networks where local DNS fails SRV lookups
+function enableDnsFallback() {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+  } catch (err) {
+    // Silently ignore if environment restricts custom DNS
+  }
+}
 
 async function connectDB(customUri) {
   if (isConnected && mongoose.connection.readyState === 1) {
     return mongoose.connection;
   }
 
-  const explicitUri = customUri || process.env.MONGO_URI;
+  let explicitUri = customUri || process.env.MONGO_URI || process.env.MONGODB_URI;
 
-  // 1. If explicit MONGO_URI is set (e.g. in .env or Atlas connection string), connect to it
+  // 1. If explicit MONGO_URI / MONGODB_URI is set (e.g. MongoDB Atlas), connect to it
   if (explicitUri) {
+    // If using MongoDB SRV connection on Windows, enable public DNS upfront to avoid querySrv ECONNREFUSED
+    if (explicitUri.includes('+srv')) {
+      enableDnsFallback();
+    }
+
+    // If the Atlas URI does not specify a database name, append /queueless
+    if (/mongodb(\+srv)?:\/\/[^/]+(\/)?(\?.*)?$/.test(explicitUri)) {
+      const match = explicitUri.match(/^(mongodb(?:\+srv)?:\/\/[^/?]+)(?:\/)?(\?.*)?$/);
+      if (match) {
+        const base = match[1];
+        const query = match[2] || '?retryWrites=true&w=majority';
+        explicitUri = `${base}/queueless${query.startsWith('?') ? query : '?' + query}`;
+      }
+    }
+
     try {
       const conn = await mongoose.connect(explicitUri, {
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 10000,
         autoIndex: true
       });
       isConnected = true;
-      console.log(`[Database] Connected to MongoDB: ${conn.connection.host || 'remote'}`);
+      console.log(`[Database] Successfully connected to MongoDB Atlas: ${conn.connection.host || 'cluster'}`);
       return conn.connection;
     } catch (err) {
-      console.error(`[Database Error] Connection to MONGO_URI failed: ${err.message}`);
+      console.error(`[Database Error] Connection to MongoDB Atlas failed: ${err.message}`);
       throw err;
     }
   }

@@ -1,13 +1,34 @@
 // API Client with CSRF token & credentials support
 
 function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[2]) : null;
 }
 
 let cachedCsrfToken = null;
+
+function getStoredToken() {
+  const fromCookie = getCookie('XSRF-TOKEN');
+  if (fromCookie) return fromCookie;
+  if (cachedCsrfToken) return cachedCsrfToken;
+  try {
+    return sessionStorage.getItem('xsrf_token') || localStorage.getItem('xsrf_token') || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function storeToken(token) {
+  if (!token) return;
+  cachedCsrfToken = token;
+  try {
+    sessionStorage.setItem('xsrf_token', token);
+    localStorage.setItem('xsrf_token', token);
+  } catch (e) {
+    // Ignore storage quota/permission errors
+  }
+}
 
 export async function fetchCsrfToken() {
   try {
@@ -16,16 +37,16 @@ export async function fetchCsrfToken() {
     });
     const data = await res.json();
     if (data.csrfToken) {
-      cachedCsrfToken = data.csrfToken;
+      storeToken(data.csrfToken);
     }
-    return cachedCsrfToken;
+    return data.csrfToken || getStoredToken();
   } catch (err) {
     console.warn('Failed to fetch CSRF token:', err);
-    return null;
+    return getStoredToken();
   }
 }
 
-export async function apiRequest(endpoint, options = {}) {
+export async function apiRequest(endpoint, options = {}, isRetry = false) {
   const method = (options.method || 'GET').toUpperCase();
   const headers = {
     'Content-Type': 'application/json',
@@ -34,7 +55,7 @@ export async function apiRequest(endpoint, options = {}) {
 
   // State-changing requests need CSRF header
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
-    let token = getCookie('XSRF-TOKEN') || cachedCsrfToken;
+    let token = getStoredToken();
     if (!token) {
       token = await fetchCsrfToken();
     }
@@ -54,8 +75,26 @@ export async function apiRequest(endpoint, options = {}) {
   try {
     data = await response.json();
   } catch (err) {
-    // If response was not JSON
     data = { success: response.ok, message: response.statusText };
+  }
+
+  // Update cached CSRF token if returned in response payload
+  if (data?.csrfToken) {
+    storeToken(data.csrfToken);
+  }
+
+  // If a state-changing operation failed due to CSRF token mismatch, auto-refresh token and retry once
+  if (
+    response.status === 403 &&
+    !isRetry &&
+    data?.message &&
+    data.message.toLowerCase().includes('csrf')
+  ) {
+    console.log('[API Client] CSRF token expired or mismatched. Refreshing token and retrying request...');
+    const freshToken = await fetchCsrfToken();
+    if (freshToken) {
+      return apiRequest(endpoint, options, true);
+    }
   }
 
   if (!response.ok) {
