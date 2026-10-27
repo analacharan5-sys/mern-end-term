@@ -1,0 +1,13 @@
+{
+  "name": "queueless-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QueueLess - Complete appointment booking and queue management application for campus services",
+  "scripts": {
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build:frontend": "npm run build --prefix frontend",
+    "test:backend": "npm test --prefix backend",
+    "test": "npm run test:backend"
+  }
+}
