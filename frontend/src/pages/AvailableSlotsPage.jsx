@@ -1,17 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
-import { Calendar, Clock, Users, CheckCircle, AlertCircle, BookmarkPlus } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle, AlertCircle, BookmarkPlus, Sparkles } from 'lucide-react';
 import BookingModal from './BookingModal';
+
+function getLocalDateStr(offsetDays = 0) {
+  const d = new Date();
+  if (offsetDays !== 0) {
+    d.setDate(d.getDate() + offsetDays);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function AvailableSlotsPage({ initialService, onBookingSuccess }) {
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState(initialService?._id || '');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateStr(0));
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [slots, setSlots] = useState([]);
   const [serviceDetails, setServiceDetails] = useState(initialService || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Quick select date buttons
+  const quickDates = [
+    { label: 'Today', dateStr: getLocalDateStr(0) },
+    { label: 'Tomorrow', dateStr: getLocalDateStr(1) },
+    {
+      label: new Date(Date.now() + 2 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(2)
+    },
+    {
+      label: new Date(Date.now() + 3 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(3)
+    },
+    {
+      label: new Date(Date.now() + 4 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(4)
+    },
+    {
+      label: new Date(Date.now() + 5 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(5)
+    },
+    {
+      label: new Date(Date.now() + 6 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(6)
+    }
+  ];
 
   // Booking Modal State
   const [bookingSlot, setBookingSlot] = useState(null);
@@ -150,6 +187,24 @@ export default function AvailableSlotsPage({ initialService, onBookingSuccess })
           </div>
         </div>
 
+        {/* Quick Date Pills */}
+        <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)', marginRight: '0.25rem' }}>
+            Quick Dates:
+          </span>
+          {quickDates.map((qd) => (
+            <button
+              key={qd.dateStr}
+              type="button"
+              className={`btn btn-sm ${date === qd.dateStr ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.8rem', padding: '0.25rem 0.65rem' }}
+              onClick={() => setDate(qd.dateStr)}
+            >
+              {qd.label}
+            </button>
+          ))}
+        </div>
+
         {serviceDetails && (
           <div
             style={{
@@ -187,10 +242,28 @@ export default function AvailableSlotsPage({ initialService, onBookingSuccess })
       ) : slots.length === 0 ? (
         <div className="empty-state">
           <Calendar className="empty-state-icon" />
-          <h3 className="empty-state-title">No slots available for this date</h3>
+          <h3 className="empty-state-title">No slots available for {date}</h3>
           <p className="empty-state-text">
-            There are no appointment slots published for this service on {date}. Try selecting another date or check back later.
+            {date < getLocalDateStr(0)
+              ? `The selected date (${date}) is in the past. Campus service appointments are only available for today and upcoming dates.`
+              : `There are currently no slots published for this service on ${date}. Select an upcoming date or jump to today below.`}
           </p>
+          <div style={{ marginTop: '1.25rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setDate(getLocalDateStr(0))}
+            >
+              Jump to Today
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setDate(getLocalDateStr(1))}
+            >
+              Check Tomorrow
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid-3">

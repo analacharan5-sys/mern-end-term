@@ -76,6 +76,49 @@ exports.getSlots = async (req, res) => {
 
     let slots = await AvailabilitySlot.find(filter).sort({ date: 1, startTime: 1 });
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    const targetDate = date || todayStr;
+
+    // Resilient fallback: If an active service has 0 slots on today or an upcoming date, auto-populate standard business hour slots
+    if (slots.length === 0 && service.isActive && targetDate >= todayStr) {
+      const defaultSampleHours = [
+        { start: '09:00', end: '09:30' },
+        { start: '09:30', end: '10:00' },
+        { start: '10:00', end: '10:30' },
+        { start: '10:30', end: '11:00' },
+        { start: '11:00', end: '11:30' },
+        { start: '13:00', end: '13:30' },
+        { start: '13:30', end: '14:00' },
+        { start: '14:00', end: '14:30' },
+        { start: '14:30', end: '15:00' },
+        { start: '15:00', end: '15:30' }
+      ];
+
+      const [y, m, d] = targetDate.split('-').map(Number);
+      const slotsToInsert = defaultSampleHours.map((slot) => {
+        const [sH, sM] = slot.start.split(':').map(Number);
+        const [eH, eM] = slot.end.split(':').map(Number);
+        return {
+          serviceId: service._id,
+          date: targetDate,
+          startTime: slot.start,
+          endTime: slot.end,
+          startDateTime: new Date(Date.UTC(y, m - 1, d, sH, sM)),
+          endDateTime: new Date(Date.UTC(y, m - 1, d, eH, eM)),
+          capacity: service.defaultCapacity || 3,
+          bookedCount: 0,
+          isAvailable: true
+        };
+      });
+
+      try {
+        await AvailabilitySlot.insertMany(slotsToInsert, { ordered: false });
+        slots = await AvailabilitySlot.find(filter).sort({ date: 1, startTime: 1 });
+      } catch (insertErr) {
+        slots = await AvailabilitySlot.find(filter).sort({ date: 1, startTime: 1 });
+      }
+    }
+
     if (onlyAvailable === 'true') {
       slots = slots.filter((s) => s.bookedCount < s.capacity);
     }
@@ -359,6 +402,31 @@ exports.deleteSlot = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to delete slot',
+      error: error.message
+    });
+  }
+};
+
+// POST /api/slots/seed-upcoming (Admin only - refresh slots for next 14 days)
+exports.seedUpcomingSlotsHandler = async (req, res) => {
+  try {
+    const { seedUpcomingSlots } = require('../config/seed');
+    const daysAhead = Number(req.body.daysAhead) || 14;
+    await seedUpcomingSlots(daysAhead);
+
+    const totalSlots = await AvailabilitySlot.countDocuments();
+    const distinctDates = await AvailabilitySlot.distinct('date');
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully ensured upcoming availability slots for the next ${daysAhead} days across all active campus services.`,
+      totalSlots,
+      distinctDates: distinctDates.sort()
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to seed upcoming slots',
       error: error.message
     });
   }

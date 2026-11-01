@@ -6,6 +6,7 @@ const { authenticate, optionalAuth, requireAdmin } = require('../middleware/auth
 router.get('/', optionalAuth, slotController.getSlots);
 
 // Administrative operations
+router.post('/seed-upcoming', authenticate, requireAdmin, slotController.seedUpcomingSlotsHandler);
 router.post('/', authenticate, requireAdmin, slotController.createSlot);
 router.post('/generate', authenticate, requireAdmin, slotController.generateSlots);
 router.delete('/:id', authenticate, requireAdmin, slotController.deleteSlot);

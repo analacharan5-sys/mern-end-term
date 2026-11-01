@@ -1,14 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
-import { Calendar, Plus, Trash2, Clock, Users, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Calendar, Plus, Trash2, Clock, Users, Sparkles, CheckCircle2, RefreshCw } from 'lucide-react';
+
+function getLocalDateStr(offsetDays = 0) {
+  const d = new Date();
+  if (offsetDays !== 0) {
+    d.setDate(d.getDate() + offsetDays);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export default function AdminSlotsPage() {
   const [services, setServices] = useState([]);
   const [selectedServiceId, setSelectedServiceId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getLocalDateStr(0));
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [seedingUpcoming, setSeedingUpcoming] = useState(false);
+
+  // Quick select date buttons
+  const quickDates = [
+    { label: 'Today', dateStr: getLocalDateStr(0) },
+    { label: 'Tomorrow', dateStr: getLocalDateStr(1) },
+    {
+      label: new Date(Date.now() + 2 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(2)
+    },
+    {
+      label: new Date(Date.now() + 3 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(3)
+    },
+    {
+      label: new Date(Date.now() + 4 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(4)
+    },
+    {
+      label: new Date(Date.now() + 5 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(5)
+    },
+    {
+      label: new Date(Date.now() + 6 * 86400000).toLocaleDateString(undefined, { weekday: 'short', month: 'numeric', day: 'numeric' }),
+      dateStr: getLocalDateStr(6)
+    }
+  ];
 
   // Bulk Generator Form State
   const [genData, setGenData] = useState({
@@ -120,14 +158,40 @@ export default function AdminSlotsPage() {
     }
   };
 
+  const handleSeedUpcoming = async () => {
+    setSeedingUpcoming(true);
+    setMessage('');
+    try {
+      const res = await api.post('/api/slots/seed-upcoming', { daysAhead: 14 });
+      if (res.success) {
+        setMessage(res.message);
+        loadSlots();
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to seed upcoming slots.');
+    } finally {
+      setSeedingUpcoming(false);
+    }
+  };
+
   return (
     <div>
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 className="page-title">Availability Slot Management</h1>
           <p className="page-subtitle">
             Publish time slots, bulk generate schedules, and monitor slot capacity
           </p>
+        </div>
+        <div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={seedingUpcoming}
+            onClick={handleSeedUpcoming}
+          >
+            {seedingUpcoming ? <div className="spinner" /> : <><Sparkles size={16} /> Seed Upcoming 14 Days (All Services)</>}
+          </button>
         </div>
       </div>
 
@@ -175,6 +239,24 @@ export default function AdminSlotsPage() {
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
+        </div>
+
+        {/* Quick Date Pills */}
+        <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--gray-500)', marginRight: '0.25rem' }}>
+            Quick Dates:
+          </span>
+          {quickDates.map((qd) => (
+            <button
+              key={qd.dateStr}
+              type="button"
+              className={`btn btn-sm ${date === qd.dateStr ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.8rem', padding: '0.25rem 0.65rem' }}
+              onClick={() => setDate(qd.dateStr)}
+            >
+              {qd.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -313,8 +395,18 @@ export default function AdminSlotsPage() {
         ) : slots.length === 0 ? (
           <div className="empty-state" style={{ border: 'none' }}>
             <Calendar className="empty-state-icon" />
-            <h4 className="empty-state-title">No slots published for this date</h4>
-            <p className="empty-state-text">Use the generator above to create slots for students to book.</p>
+            <h4 className="empty-state-title">No slots published for {date}</h4>
+            <p className="empty-state-text">Use the bulk generator above or click below to populate consecutive slots for this date.</p>
+            <div style={{ marginTop: '1rem' }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={handleGenerate}
+                disabled={generating}
+              >
+                {generating ? <div className="spinner" /> : <><Sparkles size={14} /> Quick-Generate Slots for {date}</>}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="table-responsive">

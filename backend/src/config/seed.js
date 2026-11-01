@@ -2,6 +2,68 @@ const User = require('../models/User');
 const Service = require('../models/Service');
 const AvailabilitySlot = require('../models/AvailabilitySlot');
 
+const defaultSampleHours = [
+  { start: '09:00', end: '09:30' },
+  { start: '09:30', end: '10:00' },
+  { start: '10:00', end: '10:30' },
+  { start: '10:30', end: '11:00' },
+  { start: '11:00', end: '11:30' },
+  { start: '13:00', end: '13:30' },
+  { start: '13:30', end: '14:00' },
+  { start: '14:00', end: '14:30' },
+  { start: '14:30', end: '15:00' },
+  { start: '15:00', end: '15:30' }
+];
+
+async function seedUpcomingSlots(daysAhead = 7) {
+  try {
+    const activeServices = await Service.find({ isActive: true });
+    if (activeServices.length === 0) return;
+
+    const today = new Date();
+    const slotsToInsert = [];
+
+    for (let offset = 0; offset <= daysAhead; offset++) {
+      const targetDate = new Date(today.getTime() + offset * 24 * 60 * 60 * 1000);
+      const dateStr = targetDate.toISOString().split('T')[0];
+      const [y, m, d] = dateStr.split('-').map(Number);
+
+      for (const service of activeServices) {
+        const existingCount = await AvailabilitySlot.countDocuments({
+          serviceId: service._id,
+          date: dateStr
+        });
+
+        if (existingCount === 0) {
+          for (const slot of defaultSampleHours) {
+            const [sH, sM] = slot.start.split(':').map(Number);
+            const [eH, eM] = slot.end.split(':').map(Number);
+
+            slotsToInsert.push({
+              serviceId: service._id,
+              date: dateStr,
+              startTime: slot.start,
+              endTime: slot.end,
+              startDateTime: new Date(Date.UTC(y, m - 1, d, sH, sM)),
+              endDateTime: new Date(Date.UTC(y, m - 1, d, eH, eM)),
+              capacity: service.defaultCapacity || 3,
+              bookedCount: 0,
+              isAvailable: true
+            });
+          }
+        }
+      }
+    }
+
+    if (slotsToInsert.length > 0) {
+      await AvailabilitySlot.insertMany(slotsToInsert, { ordered: false });
+      console.log(`[Seed] Automatically ensured ${slotsToInsert.length} availability slots across active services for the next ${daysAhead} days.`);
+    }
+  } catch (err) {
+    console.warn('[Seed Warning] Non-critical error while seeding upcoming slots:', err.message);
+  }
+}
+
 async function seedInitialData() {
   try {
     // 1. Seed default Admin if no admin exists
@@ -94,55 +156,13 @@ async function seedInitialData() {
 
       const createdServices = await Service.insertMany(defaultServices);
       console.log(`[Seed] Created ${createdServices.length} default campus services.`);
-
-      // Seed sample availability slots for today and tomorrow
-      const today = new Date();
-      const datesToSeed = [
-        today.toISOString().split('T')[0],
-        new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      ];
-
-      const sampleHours = [
-        { start: '09:00', end: '09:30' },
-        { start: '09:30', end: '10:00' },
-        { start: '10:00', end: '10:30' },
-        { start: '10:30', end: '11:00' },
-        { start: '11:00', end: '11:30' },
-        { start: '13:00', end: '13:30' },
-        { start: '13:30', end: '14:00' },
-        { start: '14:00', end: '14:30' },
-        { start: '14:30', end: '15:00' },
-        { start: '15:00', end: '15:30' }
-      ];
-
-      for (const service of createdServices) {
-        for (const dateStr of datesToSeed) {
-          const slotsToInsert = sampleHours.map((slot) => {
-            const [sH, sM] = slot.start.split(':').map(Number);
-            const [eH, eM] = slot.end.split(':').map(Number);
-            const [y, m, d] = dateStr.split('-').map(Number);
-
-            return {
-              serviceId: service._id,
-              date: dateStr,
-              startTime: slot.start,
-              endTime: slot.end,
-              startDateTime: new Date(Date.UTC(y, m - 1, d, sH, sM)),
-              endDateTime: new Date(Date.UTC(y, m - 1, d, eH, eM)),
-              capacity: service.defaultCapacity,
-              bookedCount: 0,
-              isAvailable: true
-            };
-          });
-
-          await AvailabilitySlot.insertMany(slotsToInsert);
-        }
-      }
-      console.log('[Seed] Generated default availability slots for campus services.');
     }
+
+    // 4. Ensure upcoming availability slots exist for active services (rolling 7 days)
+    await seedUpcomingSlots(7);
   } catch (err) {
     console.warn('[Seed Warning] Seeding skipped or encountered non-critical error:', err.message);
   }
 }
 
-module.exports = { seedInitialData };
+module.exports = { seedInitialData, seedUpcomingSlots, defaultSampleHours };
