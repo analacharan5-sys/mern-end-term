@@ -4,6 +4,21 @@
 
 ---
 
+## 📹 Application Demo Video
+
+- **Video Walkthrough File**: [`QueueLess_Demo_Video.webm`](./QueueLess_Demo_Video.webm) *(Duration: 3m 59s, 1080p/720p HD)*
+- **Live Local Download**: `http://localhost:5000/QueueLess_Demo_Video.webm`
+- **What is Demonstrated**:
+  1. **Campus Services Directory**: Department listings, rules, category filters, and live search.
+  2. **Student Authentication**: Self-service student login and session persistence.
+  3. **Atomic Slot Booking**: Live capacity counters, date pickers, reason input, and zero overbooking concurrency lock (MongoDB `$inc`).
+  4. **Queue Telemetry & Self Check-In**: Instant sequential **Ticket #1** assignment, line position monitoring, and self-service check-in.
+  5. **Admin Operations Desk**: Campus staff check-ins, status transitions to `completed`, and session notes entry.
+  6. **Bulk Slot Generator**: Automatic bulk slot generation across working day windows in seconds.
+  7. **Capacity Utilization Analytics**: Real-time aggregated utilization rates, completion and cancellation metrics, and department breakdown.
+
+---
+
 ## 🛠️ Mandatory Stack
 
 - **Frontend**: React 18, Vite, Vanilla CSS Design System, Lucide Icons
