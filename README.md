@@ -6,12 +6,12 @@
 
 ## 📹 Application Demo Video
 
-[![Watch QueueLess Demo Video](https://img.shields.io/badge/▶_Watch_Demo_Video-(3m_59s_Full_HD)-4F46E5?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/analacharan5-sys/mern-end-term/raw/main/QueueLess_Demo_Video.webm)
+[![Watch QueueLess Demo Video](https://img.shields.io/badge/▶_Watch_Demo_Video-(4m_00s_Full_HD_MP4)-4F46E5?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/analacharan5-sys/mern-end-term/blob/main/QueueLess_Demo_Video.mp4)
 
 > **Direct One-Click Links:**
-> - 📺 **[Watch Full Video on GitHub](https://github.com/analacharan5-sys/mern-end-term/blob/main/QueueLess_Demo_Video.webm)** *(Opens video directly inside the GitHub repository)*
-> - ⚡ **[Direct Video Stream (Full Browser Player)](https://github.com/analacharan5-sys/mern-end-term/raw/main/QueueLess_Demo_Video.webm)** *(Plays immediately in Chrome full-screen with zero extra clicks)*
-> - 📁 **Repository File**: [`QueueLess_Demo_Video.webm`](./QueueLess_Demo_Video.webm) *(24.2 MB, 1280x720 HD, 60 FPS)*
+> - 📺 **[Watch Full Video on GitHub](https://github.com/analacharan5-sys/mern-end-term/blob/main/QueueLess_Demo_Video.mp4)** *(Plays immediately in native GitHub video player)*
+> - ⚡ **[Direct MP4 Video Stream (Full Browser Player)](https://github.com/analacharan5-sys/mern-end-term/raw/main/QueueLess_Demo_Video.mp4)** *(Opens in Chrome fullscreen video player)*
+> - 📁 **Repository Video Files**: [`QueueLess_Demo_Video.mp4`](./QueueLess_Demo_Video.mp4) (27.8 MB) | [`QueueLess_Demo_Video.webm`](./QueueLess_Demo_Video.webm) (24.2 MB)
 
 ### 🔍 Demonstrated End-Term Workflows:
 1. **Campus Services Directory**: Department listings, rules, category filters, and live search.
